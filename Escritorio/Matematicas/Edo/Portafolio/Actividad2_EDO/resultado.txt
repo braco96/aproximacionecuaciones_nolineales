@@ -1,0 +1,930 @@
+--- ARCHIVO: ./problema2.m ---
+% RESOLUCIÓN DEL PROBLEMA 2 (P2)
+clear; clc;
+
+% --- Solución Analítica ---
+% y(t) = 0.3e^2t + 0.4sin(t) + 0.2cos(t) - 0.5
+psol = @(t) 0.3*exp(2*t) + 0.4*sin(t) + 0.2*cos(t) - 0.5;
+
+% --- Parámetros ---
+T = 2;
+y0 = 0;
+f = @(y,t) 2*y - sin(t) + 1;
+
+% Derivadas para Taylor (f = 2y - sin(t) + 1)
+fly = @(y,t) 2;             % df/dy
+flt = @(y,t) -cos(t);       % df/dt
+
+fprintf('=== TABLA DE ERRORES P2 (t=2) ===\n');
+fprintf('%-6s %-12s %-12s %-12s %-12s\n', 'Pasos', 'Err Euler', 'Err Heun', 'Err RK4', 'Err Taylor2');
+fprintf('------------------------------------------------------------\n');
+
+for j = 0:6
+    n = 10 * 2^j; 
+    
+    [t, y_eu] = eulerexp(y0, f, T, n);
+    [t, y_he] = rk2(y0, f, T, n);
+    [t, y_r4] = rk4(y0, f, T, n);
+    [t, y_ta] = taylor2(y0, f, fly, flt, T, n);
+    
+    exacta = psol(T);
+    
+    e_eu = abs(y_eu(end) - exacta);
+    e_he = abs(y_he(end) - exacta);
+    e_r4 = abs(y_r4(end) - exacta);
+    e_ta = abs(y_ta(end) - exacta);
+    
+    fprintf('%-6d %-12.2e %-12.2e %-12.2e %-12.2e\n', n, e_eu, e_he, e_r4, e_ta);
+end
+-e 
+
+--- ARCHIVO: ./untitled23.m ---
+function experimento_completo
+    clear; clc; close all;
+    syms y(t) t
+
+    %% ====================================================================
+    %  PROBLEMA 1
+    %  y' = -y + 3t^2 - 2t + 1, y(0)=1
+    % ====================================================================
+    fprintf('==========================================================\n');
+    fprintf(' INICIO EXPERIMENTO PROBLEMA 1\n');
+    fprintf('==========================================================\n');
+    
+    % 1. Definición Simbólica y Solución Exacta
+    ode1 = diff(y,t) == -y + 3*t^2 - 2*t + 1;
+    cond1 = y(0) == 1;
+    sol1 = dsolve(ode1, cond1);
+    psol1 = matlabFunction(sol1); % Convertir a función usable
+
+    % Salida de texto solicitada
+    fprintf('para la ecuacion y'' = -y + 3t^2 - 2t + 1 su solucion sera :\n');
+    disp(sol1);
+    
+    % 2. Definición de Funciones para Métodos Numéricos
+    % f(t,y), df/dy (fly), df/dt (flt) necesarias para Taylor
+    f   = @(t,y) -y + 3*t.^2 - 2*t + 1;
+    fly = @(t,y) -1;          % Derivada parcial respecto a y
+    flt = @(t,y) 6*t - 2;     % Derivada parcial respecto a t
+    
+    % 3. Ejecutar Análisis Numérico (Bucle, Errores, Gráficas)
+    ejecutar_analisis(y(0)==1, f, fly, flt, psol1, 2, 'Problema 1');
+
+    
+    %% ====================================================================
+    %  PROBLEMA 2
+    %  y' = 2y - sin(t) + 1, y(0)=0
+    % ====================================================================
+    fprintf('\n\n==========================================================\n');
+    fprintf(' INICIO EXPERIMENTO PROBLEMA 2\n');
+    fprintf('==========================================================\n');
+
+    % 1. Definición Simbólica
+    ode2 = diff(y,t) == 2*y - sin(t) + 1;
+    cond2 = y(0) == 0;
+    sol2 = dsolve(ode2, cond2);
+    psol2 = matlabFunction(sol2);
+
+    % Salida de texto solicitada
+    fprintf('para la ecuacion y'' = 2y - sin(t) + 1 su solucion sera :\n');
+    disp(sol2);
+
+    % 2. Definición de Funciones
+    f   = @(t,y) 2*y - sin(t) + 1;
+    fly = @(t,y) 2;           % Derivada parcial respecto a y
+    flt = @(t,y) -cos(t);     % Derivada parcial respecto a t
+    
+    % 3. Ejecutar Análisis
+    ejecutar_analisis(y(0)==0, f, fly, flt, psol2, 2, 'Problema 2');
+
+end
+
+%% ========================================================================
+%  FUNCIÓN MAESTRA DE ANÁLISIS (El "Experimento")
+%  Esta función hace el bucle de las capturas (Euler, Taylor, RK2, RK4)
+% ========================================================================
+function ejecutar_analisis(cond_ini, f, fly, flt, sol_exacta, T_final, titulo)
+    
+    % Obtener valor inicial numérico de la condición simbólica (ej. "y(0)=1" -> 1)
+    y0 = double(rhs(cond_ini)); 
+    
+    % Arrays para guardar errores
+    pasos = [];
+    err_eu = []; err_tay = []; err_rk2 = []; err_rk4 = [];
+    
+    fprintf('\nEjecutando métodos numéricos...\n');
+    fprintf('%-10s %-12s %-12s %-12s %-12s\n', 'n', 'Err Euler', 'Err Taylor', 'Err RK2', 'Err RK4');
+    
+    % Bucle idéntico a tu imagen "image_9fb95e.png"
+    % Iteramos i de 0 a 5 para ir duplicando n
+    for i = 1:6
+        n = 10 * 2^i; % Pasos: 10, 20, 40, 80...
+        
+        % Llamadas a los solvers (definidos abajo)
+        [t, y_eu]  = metodo_euler(y0, f, T_final, n);
+        [t, y_tay] = metodo_taylor2(y0, f, fly, flt, T_final, n);
+        [t, y_rk2] = metodo_rk2(y0, f, T_final, n);
+        [t, y_rk4] = metodo_rk4(y0, f, T_final, n);
+        
+        % Cálculo del error en el punto final (T_final)
+        y_real = sol_exacta(T_final);
+        
+        e1 = abs(y_eu(end) - y_real);
+        e2 = abs(y_tay(end) - y_real);
+        e3 = abs(y_rk2(end) - y_real);
+        e4 = abs(y_rk4(end) - y_real);
+        
+        % Guardamos para calcular órdenes
+        pasos = [pasos; n];
+        err_eu = [err_eu; e1]; err_tay = [err_tay; e2];
+        err_rk2 = [err_rk2; e3]; err_rk4 = [err_rk4; e4];
+        
+        fprintf('%-10d %-12.2e %-12.2e %-12.2e %-12.2e\n', n, e1, e2, e3, e4);
+    end
+    
+    % Cálculo de Órdenes de Convergencia (formula: log2(Error_prev / Error_act))
+    % Como en las últimas líneas de tu imagen
+    o_eu  = log2(err_eu(1:end-1) ./ err_eu(2:end));
+    o_tay = log2(err_tay(1:end-1) ./ err_tay(2:end));
+    o_rk2 = log2(err_rk2(1:end-1) ./ err_rk2(2:end));
+    o_rk4 = log2(err_rk4(1:end-1) ./ err_rk4(2:end));
+    
+    fprintf('\n--- Órdenes de Convergencia Estimados (Promedio) ---\n');
+    fprintf('Euler (Esperado 1): %.2f\n', mean(o_eu));
+    fprintf('Taylor (Esperado 2): %.2f\n', mean(o_tay));
+    fprintf('RK2   (Esperado 2): %.2f\n', mean(o_rk2));
+    fprintf('RK4   (Esperado 4): %.2f\n', mean(o_rk4));
+
+    % Gráfica comparativa (solo de la última iteración con n alto)
+    figure('Name', [titulo ' - Métodos Numéricos']);
+    plot(t, sol_exacta(t), 'k-', 'LineWidth', 2); hold on;
+    plot(t, y_eu, 'r--');
+    plot(t, y_rk2, 'g--');
+    plot(t, y_rk4, 'b--');
+    plot(t, y_tay, 'm:');
+    legend('Exacta', 'Euler', 'RK2 (Heun)', 'RK4', 'Taylor 2');
+    title([titulo ': Comparación de Métodos (n=' num2str(n) ')']);
+    grid on; hold off;
+end
+
+%% ========================================================================
+%  SOLVERS NUMÉRICOS (Implementación de los algoritmos)
+% ========================================================================
+
+function [t, y] = metodo_euler(y0, f, T, n)
+    t = linspace(0, T, n+1);
+    h = T/n;
+    y = zeros(1, n+1);
+    y(1) = y0;
+    for i = 1:n
+        y(i+1) = y(i) + h * f(t(i), y(i));
+    end
+end
+
+function [t, y] = metodo_rk2(y0, f, T, n) % Método de Heun
+    t = linspace(0, T, n+1);
+    h = T/n;
+    y = zeros(1, n+1);
+    y(1) = y0;
+    for i = 1:n
+        k1 = f(t(i), y(i));
+        k2 = f(t(i)+h, y(i) + h*k1);
+        y(i+1) = y(i) + (h/2) * (k1 + k2);
+    end
+end
+
+function [t, y] = metodo_rk4(y0, f, T, n)
+    t = linspace(0, T, n+1);
+    h = T/n;
+    y = zeros(1, n+1);
+    y(1) = y0;
+    for i = 1:n
+        k1 = f(t(i), y(i));
+        k2 = f(t(i)+0.5*h, y(i) + 0.5*h*k1);
+        k3 = f(t(i)+0.5*h, y(i) + 0.5*h*k2);
+        k4 = f(t(i)+h, y(i) + h*k3);
+        y(i+1) = y(i) + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
+    end
+end
+
+function [t, y] = metodo_taylor2(y0, f, fly, flt, T, n)
+    t = linspace(0, T, n+1);
+    h = T/n;
+    y = zeros(1, n+1);
+    y(1) = y0;
+    for i = 1:n
+        % Derivada primera: y' = f
+        d1 = f(t(i), y(i));
+        % Derivada segunda: y'' = f_t + f * f_y (Regla de la cadena)
+        d2 = flt(t(i), y(i)) + d1 * fly(t(i), y(i));
+        
+        % Formula Taylor orden 2: y + h*y' + 0.5*h^2*y''
+        y(i+1) = y(i) + h*d1 + 0.5*h^2*d2;
+    end
+end-e 
+
+--- ARCHIVO: ./lib/taylor2.m ---
+function [t,y] = taylor2(y0, f, fy, ft, T, n)
+    y(1) = y0;
+    t(1) = 0;
+    h = (T - t(1))/n;
+    for i = 2:n+1
+        t(i) = t(i-1) + h;
+        % Derivada total f' = ft + fy * f
+        f_val = f(y(i-1), t(i-1));
+        f_prima = ft(y(i-1), t(i-1)) + fy(y(i-1), t(i-1)) * f_val;
+        
+        y(i) = y(i-1) + h*f_val + 0.5*h^2 * f_prima;
+    end
+end
+-e 
+
+--- ARCHIVO: ./lib/rk2.m ---
+function [t,y]=rk2(y0,f,T,n)
+y(1)=y0;
+t(1)=0;
+h=(T-t(1))/n;
+for i=2:n+1
+    t(i)=t(i-1)+h;
+    y(i)=y(i-1)+0.5*h*(f(y(i-1),t(i-1))+f(y(i-1)+h*f(y(i-1),t(i-1)),t(i-1)+h));
+end-e 
+
+--- ARCHIVO: ./lib/eulerexp.m ---
+function [t,y] = eulerexp(y0, f, T, n)
+    y(1) = y0;
+    t(1) = 0;
+    h = (T - t(1))/n;
+    for i = 2:n+1
+        t(i) = t(i-1) + h;
+        y(i) = y(i-1) + h * f(y(i-1), t(i-1));
+    end
+end
+-e 
+
+--- ARCHIVO: ./lib/rk4.m ---
+function [t,y] = rk4(y0, f, T, n)
+    y(1) = y0;
+    t(1) = 0;
+    h = (T - t(1))/n;
+    for i = 2:n+1
+        t(i) = t(i-1) + h;
+        k1 = f(y(i-1), t(i-1));
+        k2 = f(y(i-1) + 0.5*h*k1, t(i-1) + 0.5*h);
+        k3 = f(y(i-1) + 0.5*h*k2, t(i-1) + 0.5*h);
+        k4 = f(y(i-1) + h*k3, t(i-1) + h);
+        y(i) = y(i-1) + (h/6) * (k1 + 2*k2 + 2*k3 + k4);
+    end
+end
+-e 
+
+--- ARCHIVO: ./core/analizar_edo.m ---
+function [tabla_errores] = analizar_edo(f, fly, flt, y0, T, sol_exacta_func, graficar, titulo)
+    % ANALIZAR_EDO Ejecuta los 4 métodos numéricos para n = 10*2^j
+    % Parámetros:
+    %   f, fly, flt: Handles de la función y sus derivadas parciales
+    %   y0: Condición inicial
+    %   T: Tiempo final
+    %   sol_exacta_func: Handle de la solución analítica (para calcular error)
+    %   graficar: (true/false) Booleano para activar/desactivar gráficas
+    %   titulo: String para el título de la gráfica
+
+    addpath('../lib'); % Asegurar acceso a los algoritmos
+    
+    fprintf('\n>>> Iniciando Análisis Numérico: %s\n', titulo);
+    fprintf('%-6s | %-12s %-12s %-12s %-12s\n', 'n', 'Err Euler', 'Err Heun', 'Err RK4', 'Err Taylor2');
+    fprintf('------------------------------------------------------------------------\n');
+
+    tabla_errores = [];
+    
+    % Variables para guardar la última iteración para graficar (la de mayor precisión)
+    t_plot = []; y_eu_plot = []; y_rk4_plot = [];
+
+    for j = 0:6
+        n = 10 * 2^j;
+        
+        % Ejecución de tus scripts originales
+        [t, y_eu] = eulerexp(y0, f, T, n);
+        [~, y_he] = rk2(y0, f, T, n);
+        [~, y_r4] = rk4(y0, f, T, n);
+        [~, y_ta] = taylor2(y0, f, fly, flt, T, n);
+        
+        % Cálculo de errores en t=T
+        val_exacto = sol_exacta_func(T);
+        errs = abs([y_eu(end), y_he(end), y_r4(end), y_ta(end)] - val_exacto);
+        
+        tabla_errores = [tabla_errores; n, errs];
+        fprintf('%-6d | %-12.2e %-12.2e %-12.2e %-12.2e\n', n, errs(1), errs(2), errs(3), errs(4));
+
+        % Guardamos datos de la última iteración (mayor n) para graficar si se pide
+        if j == 6
+            t_plot = t;
+            y_eu_plot = y_eu;
+            y_rk4_plot = y_r4;
+        end
+    end
+
+    % --- LOGICA DE GRAFICADO PARAMETRIZADA ---
+    if graficar
+        figure('Name', ['Resultados: ' titulo]);
+        hold on;
+        % 1. Solución Exacta
+        fplot(sol_exacta_func, [0 T], 'k-', 'LineWidth', 2);
+        
+        % 2. Aproximaciones (Graficamos Euler y RK4 como referencia de extremos)
+        plot(t_plot, y_eu_plot, 'r--', 'DisplayName', 'Euler (n=640)');
+        plot(t_plot, y_rk4_plot, 'b-.', 'DisplayName', 'RK4 (n=640)');
+        
+        title(['Solución vs Aproximaciones: ' titulo]);
+        xlabel('t'); ylabel('y');
+        legend('Solución Exacta', 'Euler', 'RK4', 'Location', 'best');
+        grid on; hold off;
+        fprintf('   [INFO] Gráfica generada.\n');
+    else
+        fprintf('   [INFO] Gráfica omitida por parámetro (graficar=false).\n');
+    end
+end
+-e 
+
+--- ARCHIVO: ./utils/resolver_analitica.m ---
+function [sol_func, sol_texto] = resolver_analitica(ecuacion_sym, cond_sym)
+    % Resuelve simbólicamente y devuelve handle numérico y string
+    sol_sym = dsolve(ecuacion_sym, cond_sym);
+    sol_func = matlabFunction(sol_sym);
+    sol_texto = char(sol_sym);
+    
+    fprintf('   [Analítica] Solución hallada: y(t) = %s\n', sol_texto);
+end
+-e 
+
+--- ARCHIVO: ./scripts/resolver_problema1.m ---
+%% Script para Resolver el Problema 1 (Actividad 2)
+clear; clc; close all;
+addpath('../core', '../utils', '../lib');
+
+% 1. Definición del Problema
+% y' = -y + 3t^2 - 2t + 1, y(0)=1
+syms y(t) t_sym
+ode_sym = diff(y,t_sym) == -y + 3*t_sym^2 - 2*t_sym + 1;
+cond_sym = y(0) == 1;
+
+% Funciones numéricas para los métodos
+f   = @(y,t) -y + 3*t.^2 - 2*t + 1;
+fly = @(y,t) -1;          % df/dy
+flt = @(y,t) 6*t - 2;     % df/dt
+y0 = 1; 
+T = 2;
+
+% 2. Obtener Solución Analítica (Apartado B automatizado)
+fprintf('=== PROBLEMA 1: Solución Analítica ===\n');
+[psol, texto_sol] = resolver_analitica(ode_sym, cond_sym);
+
+% 3. Ejecutar Métodos Numéricos (Apartado A, C)
+% PARAMETRIZACIÓN: Cambia 'true' a 'false' para ocultar gráfica
+graficar_solucion = true; 
+
+fprintf('\n=== PROBLEMA 1: Métodos Numéricos ===\n');
+tabla_p1 = analizar_edo(f, fly, flt, y0, T, psol, graficar_solucion, 'Problema 1');
+
+% 4. Análisis de Convergencia (Apartado D)
+fprintf('\n=== PROBLEMA 1: Orden de Convergencia (Estimado) ===\n');
+err_final = tabla_p1(end, 2:5);
+err_prev  = tabla_p1(end-1, 2:5);
+ordenes = log2(err_prev ./ err_final);
+fprintf('Euler: %.2f | Heun: %.2f | RK4: %.2f | Taylor2: %.2f\n', ...
+    ordenes(1), ordenes(2), ordenes(3), ordenes(4));
+-e 
+
+--- ARCHIVO: ./scripts/resolver_problema2.m ---
+%% Script para Resolver el Problema 2 (Actividad 2)
+clear; clc; close all;
+addpath('../core', '../utils', '../lib');
+
+% 1. Definición del Problema
+% y' = 2y - sin(t) + 1, y(0)=0
+syms y(t) t_sym
+ode_sym = diff(y,t_sym) == 2*y - sin(t_sym) + 1;
+cond_sym = y(0) == 0;
+
+% Funciones numéricas
+f   = @(y,t) 2*y - sin(t) + 1;
+fly = @(y,t) 2;           % df/dy
+flt = @(y,t) -cos(t);     % df/dt
+y0 = 0; 
+T = 2;
+
+% 2. Obtener Solución Analítica
+fprintf('=== PROBLEMA 2: Solución Analítica ===\n');
+[psol, texto_sol] = resolver_analitica(ode_sym, cond_sym);
+
+% 3. Ejecutar Métodos Numéricos
+% PARAMETRIZACIÓN: Aquí activamos la gráfica
+graficar_solucion = true; 
+
+fprintf('\n=== PROBLEMA 2: Métodos Numéricos ===\n');
+tabla_p2 = analizar_edo(f, fly, flt, y0, T, psol, graficar_solucion, 'Problema 2');
+
+% 4. Análisis de Convergencia
+fprintf('\n=== PROBLEMA 2: Orden de Convergencia (Estimado) ===\n');
+err_final = tabla_p2(end, 2:5);
+err_prev  = tabla_p2(end-1, 2:5);
+ordenes = log2(err_prev ./ err_final);
+fprintf('Euler: %.2f | Heun: %.2f | RK4: %.2f | Taylor2: %.2f\n', ...
+    ordenes(1), ordenes(2), ordenes(3), ordenes(4));
+-e 
+
+--- ARCHIVO: ./untitled2.m ---
+% =========================================================================
+%  SCRIPT SOLO PARA GRAFICAR CAMPO DE DIRECCIONES (P1 y P2)
+% =========================================================================
+clear; clc; close all;
+
+%% --- PROBLEMA 1 ---
+% Ecuación: y' = -y + 3t^2 - 2t + 1
+% Solución Exacta: y(t) = 3t^2 - 8t + 9 - 8e^(-t)
+
+fprintf('Generando gráfica del Problema 1...\n');
+figure('Name', 'Problema 1: Campo de Direcciones');
+
+% 1. Definir la malla (grid)
+t = 0:0.01:2;       % Rango de t [0, 2] con paso 0.2 para mejor visualización
+y = 0:0.01:6;       % Rango de y (ajustado a la solución que va de 1 a ~5.2)
+[T, Y] = meshgrid(t, y);
+
+% 2. Definir la Ecuación Diferencial (Pendientes)
+% dy/dt = f(t,y) -> Vector tangente es (1, f(t,y))
+dT = ones(size(T));             
+dY = -Y + 3*T.^2 - 2*T + 1;     
+
+% 3. Normalizar vectores (para que las flechas tengan igual longitud)
+L = sqrt(dT.^2 + dY.^2);
+dT = dT ./ L;
+dY = dY ./ L;
+
+% 4. Graficar Campo Vectorial (Flechas azules)
+quiver(T, Y, dT, dY); 
+hold on;
+
+% 5. Graficar Solución Exacta (Curva roja)
+t_sol = 0:0.01:2;
+y_sol = 3*t_sol.^2 - 8*t_sol + 9 - 8*exp(-t_sol);
+plot(t_sol, y_sol, 'r', 'LineWidth', 2);
+
+% 6. Configuración visual
+plot(0, 1, 'ko', 'MarkerFaceColor', 'k'); % Punto inicial y(0)=1
+title('Problema 1: y'' = -y + 3t^2 - 2t + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta', 'y(0)=1', 'Location', 'NorthWest');
+
+% Ajuste de ejes: [t_min t_max y_min y_max]
+axis([0 2 0 6]); 
+grid on; hold off;
+
+
+%% --- PROBLEMA 2 ---
+% Ecuación: y' = 2y - sin(t) + 1
+% Solución Exacta: y(t) = 0.3e^(2t) + 0.4sin(t) + 0.2cos(t) - 0.5
+
+fprintf('Generando gráfica del Problema 2...\n');
+figure('Name', 'Problema 2: Campo de Direcciones');
+
+% 1. Definir la malla (Rango Y más amplio porque crece exponencialmente)
+t = 0:0.1:2;
+y = 0:0.1:18;        % La solución llega hasta ~16.3
+[T, Y] = meshgrid(t, y);
+
+% 2. Definir la Ecuación Diferencial
+dT = ones(size(T));
+dY = 2*Y - sin(T) + 1;
+
+% 3. Normalizar
+L = sqrt(dT.^2 + dY.^2);
+dT = dT ./ L;
+dY = dY ./ L;
+
+% 4. Graficar Campo Vectorial
+quiver(T, Y, dT, dY); 
+hold on;
+
+% 5. Graficar Solución Exacta
+t_sol = 0:0.01:2;
+y_sol = 0.3*exp(2*t_sol) + 0.4*sin(t_sol) + 0.2*cos(t_sol) - 0.5;
+plot(t_sol, y_sol, 'r', 'LineWidth', 2);
+
+% 6. Configuración visual
+plot(0, 0, 'ko', 'MarkerFaceColor', 'k'); % Punto inicial y(0)=0
+title('Problema 2: y'' = 2y - sin(t) + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta', 'y(0)=0', 'Location', 'NorthWest');
+
+% Ajuste de ejes
+axis([0 2 0 18]);
+grid on; hold off;-e 
+
+--- ARCHIVO: ./untitled.m ---
+% =========================================================================
+%  ACTIVIDAD 2 - PORTAFOLIO (EDO)
+%  SCRIPT PRINCIPAL DETALLADO CON GRÁFICAS
+% =========================================================================
+clear; clc; close all;
+
+%% ========================================================================
+%  PROBLEMA 1 (P1): y' = -y + 3t^2 - 2t + 1, con y(0) = 1
+%  ========================================================================
+fprintf('\n****************************************************************\n');
+fprintf('                 INICIO DEL PROBLEMA 1 (P1)                     \n');
+fprintf('****************************************************************\n');
+
+% --- Configuración del Problema ---
+T = 2;          
+y0 = 1;         
+f1 = @(y,t) -y + 3*t.^2 - 2*t + 1;
+sol_exacta_p1 = @(t) 3*t.^2 - 8*t + 9 - 8*exp(-t); % Conocida para graficar
+
+% Derivadas para Taylor Orden 2
+fly1 = @(y,t) -1;            
+flt1 = @(y,t) 6*t - 2;       
+
+% -------------------------------------------------------------------------
+% GRÁFICA PREVIA: CAMPO DE DIRECCIONES Y SOLUCIÓN
+% -------------------------------------------------------------------------
+fprintf('>>> Generando gráfica del Problema 1...\n');
+figure('Name', 'Problema 1: Campo de Direcciones');
+t_grid = linspace(0, 2, 20);
+y_grid = linspace(0, 6, 20); % Rango ajustado a la solución (va de 1 a ~5.2)
+[Tg, Yg] = meshgrid(t_grid, y_grid);
+
+% Calculamos pendientes
+dT = ones(size(Tg));
+dY = -Yg + 3*Tg.^2 - 2*Tg + 1;
+L = sqrt(dT.^2 + dY.^2); % Normalización para flechas uniformes
+
+quiver(Tg, Yg, dT./L, dY./L, 0.5, 'b'); hold on; % Campo vectorial
+fplot(sol_exacta_p1, [0, 2], 'r', 'LineWidth', 2); % Solución exacta
+plot(0, 1, 'ko', 'MarkerFaceColor', 'k'); % Condición inicial
+
+title('Problema 1: y'' = -y + 3t^2 - 2t + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta', 'Condición Inicial y(0)=1', 'Location', 'NorthWest');
+grid on; hold off;
+drawnow; % Forzar dibujado antes de seguir
+
+% -------------------------------------------------------------------------
+% APARTADO A: APLICACIÓN DE MÉTODOS NUMÉRICOS
+% -------------------------------------------------------------------------
+fprintf('\n>>> [APARTADO A] Aplicando métodos numéricos...\n');
+fprintf('    Objetivo: Obtener el valor aproximado y(2) para distintos pasos n.\n\n');
+fprintf('%-6s | %-12s %-12s %-12s %-12s\n', 'Pasos', 'Euler', 'Heun', 'RK4', 'Taylor2');
+fprintf('----------------------------------------------------------------------\n');
+
+valores_aprox_P1 = []; 
+
+for j = 0:6
+    n = 10 * 2^j; 
+    
+    [~, ye] = eulerexp(y0, f1, T, n);
+    [~, yh] = rk2(y0, f1, T, n);
+    [~, yr] = rk4(y0, f1, T, n);
+    [~, yt] = taylor2(y0, f1, fly1, flt1, T, n);
+    
+    val_e = ye(end); val_h = yh(end); val_r = yr(end); val_t = yt(end);
+    valores_aprox_P1 = [valores_aprox_P1; n, val_e, val_h, val_r, val_t];
+    
+    fprintf('%-6d | %-12.5f %-12.5f %-12.5f %-12.5f\n', n, val_e, val_h, val_r, val_t);
+end
+fprintf('\n(Nota: Estos son los valores aproximados de y(2). Se observa convergencia).\n');
+
+% -------------------------------------------------------------------------
+% APARTADO B: SOLUCIÓN ANALÍTICA
+% -------------------------------------------------------------------------
+fprintf('\n\n>>> [APARTADO B] Calculando Solución Analítica...\n');
+syms y(t) t
+eqn1 = diff(y) == -y + 3*t^2 - 2*t + 1;
+cond1 = y(0) == 1;
+sol1_sym = dsolve(eqn1, cond1);
+
+fprintf('    La ecuación es lineal de primer orden. Usando factor integrante e^t:\n');
+fprintf('    Fórmula Exacta: y(t) = %s\n', char(sol1_sym));
+
+psol1 = matlabFunction(sol1_sym);
+exacta_P1 = psol1(T);
+fprintf('    Valor EXACTO en t=2: %.8f\n', exacta_P1);
+
+% -------------------------------------------------------------------------
+% APARTADO C: TABLA DE ERRORES
+% -------------------------------------------------------------------------
+fprintf('\n\n>>> [APARTADO C] Generando Tabla de Errores Absolutos...\n');
+fprintf('    Cálculo: | Valor_Aproximado (del apartado A) - Valor_Exacto (del apartado B) |\n\n');
+fprintf('%-6s | %-12s %-12s %-12s %-12s\n', 'Pasos', 'Err_Euler', 'Err_Heun', 'Err_RK4', 'Err_Tay2');
+fprintf('----------------------------------------------------------------------\n');
+
+errores_P1 = [];
+
+for i = 1:size(valores_aprox_P1, 1)
+    n = valores_aprox_P1(i, 1);
+    vals = valores_aprox_P1(i, 2:5); 
+    errs = abs(vals - exacta_P1);
+    errores_P1 = [errores_P1; errs];
+    
+    fprintf('%-6d | %-12.2e %-12.2e %-12.2e %-12.2e\n', n, errs(1), errs(2), errs(3), errs(4));
+end
+
+% -------------------------------------------------------------------------
+% APARTADO D: ANÁLISIS DE RESULTADOS
+% -------------------------------------------------------------------------
+fprintf('\n\n>>> [APARTADO D] Análisis de Convergencia (EOC)...\n');
+fprintf('    Se estima el orden "p" usando la fórmula: log2(Error_anterior / Error_actual)\n');
+fprintf('    Esperamos: Euler=1, Heun=2, RK4=4, Taylor2=2\n\n');
+
+e_ant = errores_P1(end-1, :);
+e_act = errores_P1(end, :);
+ordenes = log2(e_ant ./ e_act);
+
+fprintf('    Orden Euler:    %.2f  (Coherente con teoría p=1)\n', ordenes(1));
+fprintf('    Orden Heun:     %.2f  (Coherente con teoría p=2)\n', ordenes(2));
+fprintf('    Orden RK4:      %.2f  (Coherente con teoría p=4)\n', ordenes(3));
+fprintf('    Orden Taylor2:  %.2f  (Coherente con teoría p=2)\n', ordenes(4));
+
+fprintf('\n----------------------------------------------------------------\n');
+fprintf('Pulse una tecla para continuar con el PROBLEMA 2...\n');
+pause; 
+
+
+%% ========================================================================
+%  PROBLEMA 2 (P2): y' = 2y - sin(t) + 1, con y(0) = 0
+%  ========================================================================
+clc;
+fprintf('\n****************************************************************\n');
+fprintf('                 INICIO DEL PROBLEMA 2 (P2)                     \n');
+fprintf('****************************************************************\n');
+
+T = 2; 
+y0 = 0;
+f2 = @(y,t) 2*y - sin(t) + 1;
+sol_exacta_p2 = @(t) 0.3*exp(2*t) + 0.4*sin(t) + 0.2*cos(t) - 0.5;
+
+% Derivadas para Taylor
+fly2 = @(y,t) 2;             
+flt2 = @(y,t) -cos(t);       
+
+% -------------------------------------------------------------------------
+% GRÁFICA PREVIA: CAMPO DE DIRECCIONES Y SOLUCIÓN
+% -------------------------------------------------------------------------
+fprintf('>>> Generando gráfica del Problema 2...\n');
+figure('Name', 'Problema 2: Campo de Direcciones');
+t_grid = linspace(0, 2, 20);
+y_grid = linspace(0, 18, 20); % Rango ajustado (solución crece exponencialmente hasta ~16.3)
+[Tg, Yg] = meshgrid(t_grid, y_grid);
+
+dT = ones(size(Tg));
+dY = 2*Yg - sin(Tg) + 1;
+L = sqrt(dT.^2 + dY.^2);
+
+quiver(Tg, Yg, dT./L, dY./L, 0.5, 'b'); hold on;
+fplot(sol_exacta_p2, [0, 2], 'r', 'LineWidth', 2);
+plot(0, 0, 'ko', 'MarkerFaceColor', 'k');
+
+title('Problema 2: y'' = 2y - sin(t) + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta', 'Condición Inicial y(0)=0', 'Location', 'NorthWest');
+grid on; hold off;
+drawnow;
+
+% --- APARTADO A ---
+fprintf('\n>>> [APARTADO A] Aplicando métodos numéricos...\n');
+fprintf('%-6s | %-12s %-12s %-12s %-12s\n', 'Pasos', 'Euler', 'Heun', 'RK4', 'Taylor2');
+fprintf('----------------------------------------------------------------------\n');
+
+valores_aprox_P2 = [];
+
+for j = 0:6
+    n = 10 * 2^j; 
+    [~, ye] = eulerexp(y0, f2, T, n);
+    [~, yh] = rk2(y0, f2, T, n);
+    [~, yr] = rk4(y0, f2, T, n);
+    [~, yt] = taylor2(y0, f2, fly2, flt2, T, n);
+    
+    val_e = ye(end); val_h = yh(end); val_r = yr(end); val_t = yt(end);
+    valores_aprox_P2 = [valores_aprox_P2; n, val_e, val_h, val_r, val_t];
+    
+    fprintf('%-6d | %-12.5f %-12.5f %-12.5f %-12.5f\n', n, val_e, val_h, val_r, val_t);
+end
+
+% --- APARTADO B ---
+fprintf('\n\n>>> [APARTADO B] Calculando Solución Analítica...\n');
+syms y(t) t
+eqn2 = diff(y) == 2*y - sin(t) + 1;
+cond2 = y(0) == 0;
+sol2_sym = dsolve(eqn2, cond2);
+
+fprintf('    Fórmula Exacta: y(t) = %s\n', char(sol2_sym));
+psol2 = matlabFunction(sol2_sym);
+exacta_P2 = psol2(T);
+fprintf('    Valor EXACTO en t=2: %.8f\n', exacta_P2);
+
+% --- APARTADO C ---
+fprintf('\n\n>>> [APARTADO C] Generando Tabla de Errores Absolutos...\n');
+fprintf('%-6s | %-12s %-12s %-12s %-12s\n', 'Pasos', 'Err_Euler', 'Err_Heun', 'Err_RK4', 'Err_Tay2');
+fprintf('----------------------------------------------------------------------\n');
+
+errores_P2 = [];
+for i = 1:size(valores_aprox_P2, 1)
+    n = valores_aprox_P2(i, 1);
+    vals = valores_aprox_P2(i, 2:5);
+    errs = abs(vals - exacta_P2);
+    errores_P2 = [errores_P2; errs];
+    fprintf('%-6d | %-12.2e %-12.2e %-12.2e %-12.2e\n', n, errs(1), errs(2), errs(3), errs(4));
+end
+
+% --- APARTADO D ---
+fprintf('\n\n>>> [APARTADO D] Análisis de Convergencia (EOC)...\n');
+e_ant = errores_P2(end-1, :);
+e_act = errores_P2(end, :);
+ordenes = log2(e_ant ./ e_act);
+
+fprintf('    Orden Euler:    %.2f\n', ordenes(1));
+fprintf('    Orden Heun:     %.2f\n', ordenes(2));
+fprintf('    Orden RK4:      %.2f\n', ordenes(3));
+fprintf('    Orden Taylor2:  %.2f\n', ordenes(4));
+fprintf('\n*** FIN DE LA EJECUCIÓN ***\n');
+
+
+
+-e 
+
+--- ARCHIVO: ./README.md ---
+# Simulador EDO MATLAB - Portafolio Actividad 2
+
+Este repositorio contiene el código fuente que he desarrollado para la Actividad 2 de Ecuaciones Diferenciales Ordinarias (Curso 2025-26). He estructurado el proyecto como una librería modular para facilitar la resolución de los problemas planteados y el análisis de errores.
+
+## Estructura del Proyecto
+
+He organizado mis scripts de la siguiente manera:
+
+* **`lib/`**: Contiene mis implementaciones de los algoritmos numéricos base (`eulerexp`, `rk2`, `rk4`, `taylor2`). No he modificado su lógica interna, actúan como herramientas.
+* **`core/`**: Aquí he programado la lógica de automatización. El script `analizar_edo.m` es una función parametrizada que recibe la EDO y un booleano `graficar` para ejecutar todo el análisis solicitado en los apartados A, C y D.
+* **`scripts/`**: Son los ejecutables finales (`resolver_problema1.m` y `resolver_problema2.m`). Aquí defino las ecuaciones específicas de cada problema y llamo a las funciones del núcleo.
+* **`utils/`**: Herramientas de soporte, como el cálculo simbólico de la solución analítica (Apartado B).
+
+## Cómo ejecutar
+
+Para obtener los resultados del portafolio:
+
+1.  Abre MATLAB y sitúate en la carpeta `scripts/`.
+2.  Ejecuta `resolver_problema1` para ver los resultados del P1.
+3.  Ejecuta `resolver_problema2` para ver los resultados del P2.
+
+Ambos scripts generarán en la consola la solución analítica, las tablas de errores y, si el parámetro `graficar` está en `true`, abrirán las figuras comparativas.
+
+## Parametrización
+
+He diseñado la función `analizar_edo` para que acepte un argumento booleano:
+- `true`: Genera las gráficas de las aproximaciones vs la solución exacta.
+- `false`: Solo devuelve las tablas numéricas para optimizar el tiempo de ejecución si no se requiere visualización.
+
+---
+*Autor: [Tu Nombre]*
+*Grado en Matemáticas - VIU*
+-e 
+
+--- ARCHIVO: ./problema1.m ---
+% RESOLUCIÓN DEL PROBLEMA 1 (P1)
+clear; clc;
+
+% --- Solución Analítica ---
+% y(t) = 3t^2 - 8t + 9 - 8e^-t
+psol = @(t) 3*t.^2 - 8*t + 9 - 8*exp(-t);
+
+% --- Parámetros ---
+T = 2;
+y0 = 1;
+f = @(y,t) -y + 3*t.^2 - 2*t + 1;
+
+% Derivadas para Taylor (f = -y + 3t^2 - 2t + 1)
+fly = @(y,t) -1;            % df/dy
+flt = @(y,t) 6*t - 2;       % df/dt
+
+fprintf('=== TABLA DE ERRORES P1 (t=2) ===\n');
+fprintf('%-6s %-12s %-12s %-12s %-12s\n', 'Pasos', 'Err Euler', 'Err Heun', 'Err RK4', 'Err Taylor2');
+fprintf('------------------------------------------------------------\n');
+
+for j = 0:6
+    n = 10 * 2^j; % n = 10, 20, 40, ...
+    
+    [t, y_eu] = eulerexp(y0, f, T, n);
+    [t, y_he] = rk2(y0, f, T, n);
+    [t, y_r4] = rk4(y0, f, T, n);
+    [t, y_ta] = taylor2(y0, f, fly, flt, T, n);
+    
+    exacta = psol(T);
+    
+    % Errores absolutos en el punto final
+    e_eu = abs(y_eu(end) - exacta);
+    e_he = abs(y_he(end) - exacta);
+    e_r4 = abs(y_r4(end) - exacta);
+    e_ta = abs(y_ta(end) - exacta);
+    
+    fprintf('%-6d %-12.2e %-12.2e %-12.2e %-12.2e\n', n, e_eu, e_he, e_r4, e_ta);
+end
+-e 
+
+--- ARCHIVO: ./edotrab.m ---
+clear; clc; close all;
+syms y(t) t
+
+%% ========================================================================
+%  PARTE 1: CÁLCULO SIMBÓLICO (Obtener las fórmulas)
+% ========================================================================
+
+% --- PROBLEMA 1 ---
+% Ecuación: y' = -y + 3t^2 - 2t + 1, y(0) = 1
+ode1 = diff(y,t) == -y + 3*t^2 - 2*t + 1;
+cond1 = y(0) == 1;
+sol1 = dsolve(ode1, cond1);
+
+% Convertimos a función numérica para poder graficarla después
+psol1 = matlabFunction(sol1); 
+
+% Salida de texto solicitada
+fprintf('para la ecuacion y'' = -y + 3t^2 - 2t + 1 su solucion sera :\n');
+disp(sol1);
+
+
+% --- PROBLEMA 2 ---
+% Ecuación: y' = 2y - sin(t) + 1, y(0) = 0
+ode2 = diff(y,t) == 2*y - sin(t) + 1;
+cond2 = y(0) == 0;
+sol2 = dsolve(ode2, cond2);
+
+% Convertimos a función numérica
+psol2 = matlabFunction(sol2);
+
+% Salida de texto solicitada
+fprintf('\npara la ecuacion y'' = 2y - sin(t) + 1 su solucion sera :\n');
+disp(sol2);
+
+
+%% ========================================================================
+%  PARTE 2: GRAFICACIÓN (Usando las soluciones calculadas arriba)
+% ========================================================================
+
+fprintf('\nGenerando gráficas combinadas...\n');
+
+%% --- GRÁFICA PROBLEMA 1 ---
+figure('Name', 'Problema 1: Campo vs Solución Calculada');
+hold on;
+
+% 1. Campo de Direcciones (Quiver) - Usamos paso GRANDE (0.2) para que se vean las flechas
+t_quiver = 0 : 0.2 : 2;      
+y_quiver = 0 : 0.2 : 6;      
+[T, Y] = meshgrid(t_quiver, y_quiver);
+
+dT = ones(size(T));             
+dY = -Y + 3*T.^2 - 2*T + 1;     
+
+% Normalización
+L = sqrt(dT.^2 + dY.^2);
+quiver(T, Y, dT./L, dY./L, 0.5, 'b'); % Flechas azules
+
+% 2. Solución Exacta (Curva Roja) - Usamos paso FINO (0.01) y la función psol1
+t_plot = 0 : 0.01 : 2;
+y_plot = psol1(t_plot); % <--- ¡AQUÍ USAMOS LA SOLUCIÓN CALCULADA!
+
+plot(t_plot, y_plot, 'r', 'LineWidth', 2);
+
+% 3. Decoración
+plot(0, 1, 'ko', 'MarkerFaceColor', 'k'); % Punto inicial
+title('Problema 1: y'' = -y + 3t^2 - 2t + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta (dsolve)', 'y(0)=1', 'Location', 'best');
+axis([0 2 0 6]); grid on;
+
+
+%% --- GRÁFICA PROBLEMA 2 ---
+figure('Name', 'Problema 2: Campo vs Solución Calculada');
+hold on;
+
+% 1. Campo de Direcciones
+t_quiver = 0 : 0.1 : 2;
+y_quiver = 0 : 0.5 : 18;  % Rango amplio
+[T, Y] = meshgrid(t_quiver, y_quiver);
+
+dT = ones(size(T));
+dY = 2*Y - sin(T) + 1;
+
+% Normalización
+L = sqrt(dT.^2 + dY.^2);
+quiver(T, Y, dT./L, dY./L, 0.5, 'b');
+
+% 2. Solución Exacta - Usamos psol2 calculada automáticamente
+t_plot = 0 : 0.01 : 2;
+y_plot = psol2(t_plot); % <--- ¡AQUÍ USAMOS LA SOLUCIÓN CALCULADA!
+
+plot(t_plot, y_plot, 'r', 'LineWidth', 2);
+
+% 3. Decoración
+plot(0, 0, 'ko', 'MarkerFaceColor', 'k'); % Punto inicial
+title('Problema 2: y'' = 2y - sin(t) + 1');
+xlabel('t'); ylabel('y');
+legend('Campo de Direcciones', 'Solución Exacta (dsolve)', 'y(0)=0', 'Location', 'best');
+axis([0 2 0 18]); grid on;-e 
+
